@@ -1,13 +1,24 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# bd\_case
+# Arthur Gusmão
+
+## O BD Case:
+
+###### Elaborar uma visualização, usando pelo menos uma das seguintes bases:
+
+  - **Eleições Brasileiras.**
+  - **Sistema de Informações Contábeis e Fiscais do Setor Público
+    Brasileiro (Siconfi).**
+  - **Inflação.**
+
+A base escolhida foi a de **Eleições Brasileiras.**
 
 <!-- badges: start -->
 
 <!-- badges: end -->
 
-The goal of bd\_case is to …
+Então vamos nessa\! Importando os pacotes…
 
 ``` r
 library(basedosdados)
@@ -49,10 +60,35 @@ library(tidyverse)
 #> x dplyr::lag()    masks stats::lag()
 library(geofacet)
 #> Warning: package 'geofacet' was built under R version 4.0.5
+library(ggh4x)
+library(plotly)
+#> Warning: package 'plotly' was built under R version 4.0.5
+#> 
+#> Attaching package: 'plotly'
+#> The following object is masked from 'package:ggplot2':
+#> 
+#>     last_plot
+#> The following object is masked from 'package:stats':
+#> 
+#>     filter
+#> The following object is masked from 'package:graphics':
+#> 
+#>     layout
+library(extrafont)
+#> Warning: package 'extrafont' was built under R version 4.0.5
+#> Registering fonts with R
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
+O objetivo da minha análise é visualizar a evolução no tempo do número
+de vereadoras eleitas e compará-lo com o número de vereadores eleitos,
+para todas as Unidades Federativas do Brasil. Para isso, usei a base de
+eleições (do TSE), disponibilizada no *datalake*. De maneira resumida,
+carreguei as bases com os resultados e fiz um `merge()` com a base dos
+candidatos, que é a que contêm os dados de gênero, raça, instrução e
+etc.
+
+Baixando os dados do *datalake* com a função `basedosdados::bdplyr()` e
+construindo a *query* com o `dplyr`:
 
 ``` r
 set_billing_id("casebd")
@@ -71,6 +107,7 @@ query <- bdplyr("br_tse_eleicoes.resultados_candidato") %>%
 #>   See gargle's "Non-interactive auth" vignette for more details:
 #>   <https://gargle.r-lib.org/articles/non-interactive-auth.html>
 #> i The bigrquery package is using a cached token for 'arthurgusmao@id.uff.br'.
+#> Auto-refreshing stale OAuth token.
 #> Successfully connected to table `basedosdados.br_tse_eleicoes.resultados_candidato`.
 
 df_resultado <- bd_collect(query)
@@ -82,8 +119,6 @@ query2 <- bdplyr("br_tse_eleicoes.candidatos") %>%
   select(ano,sigla_uf,id_candidato_bd,nome,situacao,ocupacao, genero, idade,instrucao,raca)%>%
   filter(ano > 2007)
 #> Successfully connected to table `basedosdados.br_tse_eleicoes.candidatos`.
-  #filter(str_detect(ocupacao,c("policia|militar reformado")))
-  
 
 df_candidatos <- bd_collect(query2)
 
@@ -99,124 +134,174 @@ query4 <- bdplyr("br_bd_diretorios_brasil.uf")%>%
 diretorio <- bd_collect(query4)
 ```
 
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date. `devtools::build_readme()` is handy for this. You could also
-use GitHub Actions to re-render `README.Rmd` every time you push. An
-example workflow can be found here:
-<https://github.com/r-lib/actions/tree/v1/examples>.
-
-You can also embed plots, for example:
+Como disse, fiz o `merge()` das bases de candidatos e do resultado das
+eleições, e também fiz um `merge()` com a base de **diretórios**, para
+facilitar a visualização dos nomes das UF’s.
 
 ``` r
-
-
 
 candidatos_merged <- merge(df_candidatos, df_resultado, by = c("id_candidato_bd","ano"))
 
 diretorio <- diretorio %>%
   rename(nome_uf = nome, sigla_uf = sigla) #%>%
-  #distinct(id_municipio, .keep_all = TRUE)
 
 candidatos_merged <- merge(candidatos_merged, diretorio, by.x = "sigla_uf.x", by.y = "sigla_uf")
-
-
 
 #df_despesas %>%
   #filter(estagio == "Despesas Pagas") %>% group_by(conta) %>% distinct(conta) %>% view()
 ```
 
-## Calculando a proporção de militares eleitos
+Com as funções do `dplyr`, montei uma base (a) com número de
+candidatos(as) eleitos(as), por gênero, e a propoção entre os dois
+gêneros.
 
 ``` r
 
 a <- candidatos_merged %>%
   filter(resultado != "suplente")%>%
   filter(tipo_eleicao == "eleicao ordinaria", situacao == "deferido")%>%
-  mutate(militar = case_when(str_detect(ocupacao,c("policia|militar reformado"))~ "Policial ou Militar",TRUE ~ "Outras ocupações"))%>%
-  group_by(ano, nome_uf, genero)%>%
+  #mutate(militar = case_when(str_detect(ocupacao,c("policia|militar reformado"))~ "Policial ou Militar",TRUE ~ "Outras ocupações"))%>% ##tinha pensado em fazer algo relacionado à policia, mas desisti...
+  group_by(ano, sigla_uf.x, genero)%>%
   summarise(N = n()) %>%
-  group_by(ano, nome_uf)%>%
+  group_by(ano, sigla_uf.x)%>%
   mutate(total = sum(N), proporcao =round(N/total,2))%>%
   mutate(genero = if_else(is.na(genero), "nao respondido", genero))%>%
   mutate(genero = as.factor(genero)) 
-#> `summarise()` has grouped output by 'ano', 'nome_uf'. You can override using
+#> `summarise()` has grouped output by 'ano', 'sigla_uf.x'. You can override using
 #> the `.groups` argument.
 ```
 
+Com a base pronta, criei uma primeira visualização, com o pacote
+`ggplot2`, mostrando a evolução temporal da proporção de pessoas
+eleitas, para o cargo de vereador(a), do gênero feminino, comparada com
+o total de vereadores(as) eleitos(as), por UF. Com o
+`geofacet::facet_geo()` pude deixar a visualização um pouquinho mais
+“bonita”, dando ao gráfico o formato, *não tão exato*, do mapa do
+Brasil.
+
 ``` r
-# First, define colors.
-BROWN <- "#AD8C97"
-BROWN_DARKER <- "#7d3a46"
-GREEN <- "#2FC1D3"
-BLUE <- "#076FA1"
-GREY <- "#C7C9CB"
-GREY_DARKER <- "#5C5B5D"
-RED <- "#E3120B"
 
-plt1 <- a %>% 
-  ggplot(aes(ano, proporcao)) +
-  geom_line(aes(color = as.factor(genero)), size = 1) +
-  geom_point(
-    aes(fill = as.factor(genero)), 
-    size = 2, 
-    pch = 10, # Type of point that allows us to have both color (border) and fill.
-    color = "white", 
-    stroke = 1 # The width of the border, i.e. stroke.
+a %>%
+  filter(genero=="feminino")%>%
+  ggplot(aes(x = ano, y = proporcao))+
+  geom_area(fill = "#009688",alpha=0.4) +
+  geom_line(color="#762a83", size=1, alpha = 0.5) +
+  geom_point(size=1.5, color="#762a83", alpha = 0.5)+
+  scale_y_continuous(labels = scales::percent)+
+  facet_geo(~sigla_uf.x, grid = "br_states_grid1")+
+  scale_x_continuous(breaks = seq(2008, 2020, 4)) +
+  labs(
+    title = "Percentual de\nvereadores(as) do gênero\nfeminino eleitos(as),\n2008-2020:",
+    caption = "Fonte: @basedosdados · Elaboração: Arthur Gusmão\nObs: Não há eleições municipais no Distrito Federal"
   ) +
-  # Set values for the color and the fill
-  scale_color_manual(values = c(BLUE, GREEN, BROWN)) +
-  scale_fill_manual(values = c(BLUE, GREEN, BROWN)) + 
-  # Do not include any legend
-  theme(legend.position = "none")
-  
-
-plt1 <- plt1 + 
-  scale_x_continuous(
-    limits = c(2007.5, 2021.5),
-    expand = c(0, 0), # The horizontal axis does not extend to either side
-    breaks = c(2008, 2012, 2016, 2020),  # Set custom break locations
-    labels = c("2008", "12", "16", "20") # And custom labels on those breaks!
-  ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    breaks = seq(0, 1, by = 0.05), 
-    expand = c(0, 0)
-  ) + 
+  theme_minimal() +
   theme(
-    # Set background color to white
-    panel.background = element_rect(fill = "white"),
-    # Remove all grid lines
     panel.grid = element_blank(),
-    # But add grid lines for the vertical axis, customizing color and size 
-    panel.grid.major.y = element_line(color = "#A8BAC4", size = 0.3),
-    # Remove tick marks on the vertical axis by setting their length to 0
-    axis.ticks.length.y = unit(0, "mm"), 
-    # But keep tick marks on horizontal axis
-    axis.ticks.length.x = unit(2, "mm"),
-    # Remove the title for both axes
+    legend.pos = c(0.875, 0.975),
+    legend.direction = "horizontal",
+    legend.box = "vertical",
+    legend.title = element_blank(),
+    plot.background = element_rect(fill = "#F5F4EF", color = NA),
+    plot.margin = margin(40, 60, 40, 60),
+    plot.title = element_text(
+      margin = margin(0, 0, 0, 0), 
+      size = 20,
+      family = "Georgia",
+      face = "bold",
+      vjust = 0, 
+      color = "grey25"
+    ),
+    plot.caption = element_text(size = 11, family = "Georgia", color = "grey25"),
     axis.title = element_blank(),
-    # Only the bottom line of the vertical axis is painted in black
-    axis.line.x.bottom = element_line(color = "black"),
-    # Remove labels from the vertical axis
-    axis.text.y = element_blank(),
-    # But customize labels for the horizontal axis
-    axis.text.x = element_text(size = 6)
+    axis.text.x = element_text(color = "grey40", size = 8),
+    axis.text.y = element_text(color = "grey40", size = 6),
+    strip.text = element_text(face = "bold", color = "grey20")
+    
   )
-
-plt1 + 
-  geom_text(
-    data = data.frame(x = 2021.5, y = seq(0, 1, by = .1)),
-    aes(x, y, label = y),
-    hjust = 1, # Align to the right
-    vjust = 0, # Align to the bottom
-    nudge_y = 1 * 0.01, 
-    size = 1
-  ) +
-  facet_geo(~ nome_uf, grid = "br_states_grid1")
-#> Warning: Removed 48 rows containing missing values (geom_text).
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-5-1.png)<!-- --> Agora outra
+visualização:
 
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub.
+``` r
+## Pegando as UF's que tiveram resultado positivo na comparação 2008-2020
+a %>%
+  filter(genero == "feminino", ano == 2008 | ano ==2020) %>%
+  mutate(sigla_uf.x = factor(sigla_uf.x, levels = sigla_uf.x))%>%
+  group_by(sigla_uf.x)%>%
+  mutate(pct_change = (proporcao/lag(proporcao) - 1))%>% 
+  mutate(pct_change = coalesce(pct_change,0))%>%
+  mutate(id = case_when(pct_change > 0  ~ "positivo",
+                        TRUE ~"negativo"))%>%
+  filter(id == "positivo")%>%
+  pull(sigla_uf.x) -> positivos
+
+
+## Base com os resultados positivos, irá ficar mais ressaltada no grafico:
+### Dica do https://uc-r.github.io/cleveland-dot-plots
+highlight <- a %>%
+  filter(genero == "feminino", ano == 2008 | ano ==2020) %>%
+  group_by(ano)%>%
+  arrange(proporcao)%>%
+  mutate(sigla_uf.x = factor(sigla_uf.x, levels = sigla_uf.x))%>%
+  filter(sigla_uf.x %in% positivos)
+
+
+## Criando as bases com os labels
+label_esq <- a %>%
+  filter(genero == "feminino", ano == 2008) %>%
+  group_by(ano)%>%
+  arrange(proporcao)%>%
+  mutate(sigla_uf.x = factor(sigla_uf.x, levels = sigla_uf.x))%>%
+  filter(sigla_uf.x %in% positivos)
+
+label_dir <- a %>%
+  filter(genero == "feminino",ano ==2020) %>%
+  group_by(ano)%>%
+  arrange(proporcao)%>%
+  mutate(sigla_uf.x = factor(sigla_uf.x, levels = sigla_uf.x))%>%
+  filter(sigla_uf.x %in% positivos)
+
+## O gráfico:
+plot3 <- a %>%
+  filter(genero == "feminino", ano == 2008 | ano ==2020) %>%
+  group_by(ano)%>%
+  arrange(ano)%>%
+  mutate(sigla_uf.x = factor(sigla_uf.x, levels = sigla_uf.x))%>%
+  ggplot(aes(proporcao,sigla_uf.x))+
+  geom_line(aes(group = sigla_uf.x), alpha = 0.4)+
+  geom_line(data= highlight, aes(group = sigla_uf.x), size = 0.6)+
+  geom_point(aes(color = as.factor(ano)), alpha = 0.4, size= 1.5)+
+  geom_point(data = highlight, aes(color = as.factor(ano)), size = 3)+
+  geom_text(data = label_dir, aes(label= scales::percent(proporcao,accuracy = 0.1)), size = 2.5, hjust = -0.5)+
+  geom_text(data = label_esq, aes(label=  scales::percent(proporcao, accuracy = 0.1)), size = 2.5, hjust = 1.5)+
+  scale_x_continuous(labels = scales::percent)
+
+
+##  Ajustes finais:
+plot3 +
+  scale_color_manual(values=c("#009688", "#762a83"))+
+  scale_y_discrete(expand = c(.02, 0)) +
+        labs(title = "Percentual de vereadores(as) do \ngênero feminino eleitos(as), 2008-2020:",
+             subtitle = "Das 26 Unidades Federativas Brasileiras, 13 apresentaram crescimento da proporção de eleitos(as)\ndo gênero feminino no período 2008-2020.\nEssas 13 Unidades Federativas estão ressaltadas no gráfico.",
+             caption = "Fonte: @basedosdados · Elaboração: Arthur Gusmão") +
+        theme_minimal() +
+        theme(axis.title = element_blank(),
+              plot.background = element_rect(fill = "#F5F4EF", color = NA),
+              panel.grid.major.x = element_blank(),
+              panel.grid.minor = element_blank(),
+              legend.title = element_blank(),
+              plot.margin = margin(10, 10, 10, 10),
+              legend.justification = c(0, 1), 
+              legend.position = c(.1, 1.075),
+              legend.background = element_blank(),
+              legend.direction="horizontal",
+              text = element_text(family = "Georgia"),
+              plot.title = element_text(size = 20, margin = margin(b = 10), color = "grey25", face = "bold"),
+              plot.subtitle = element_text(size = 10, color = "grey20", margin = margin(b = 25)),
+              plot.caption = element_text(size = 8, margin = margin(t = 10), color = "grey25", hjust = 0))
+```
+
+![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+É isso, espero que gostem :)

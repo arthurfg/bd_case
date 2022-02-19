@@ -124,7 +124,7 @@ a %>%
   facet_geo(~sigla_uf.x, grid = "br_states_grid1")+
   scale_x_continuous(breaks = seq(2008, 2020, 4)) +
   labs(
-    title = "Percentual de\nvereadores(as) do gênero\nfeminino eleitos(as),\n2008-2020:",
+    title = "Percentual de\nvereadoras(es) do gênero\nfeminino eleitas(os),\n2008-2020:",
     caption = "Fonte: @basedosdados · Elaboração: Arthur Gusmão\nObs: Não há eleições municipais no Distrito Federal"
   ) +
   theme_minimal() +
@@ -214,7 +214,7 @@ plot3 <- a %>%
 plot3 +
   scale_color_manual(values=c("#009688", "#762a83"))+
   scale_y_discrete(expand = c(.02, 0)) +
-        labs(title = "Percentual de vereadores(as) do \ngênero feminino eleitos(as), 2008-2020:",
+        labs(title = "Percentual de vereadoras(es) do \ngênero feminino eleitos(as), 2008-2020:",
              subtitle = "Das 26 Unidades Federativas Brasileiras, 13 apresentaram crescimento da proporção de eleitos(as)\ndo gênero feminino no período 2008-2020.\nEssas 13 Unidades Federativas estão ressaltadas no gráfico.",
              caption = "Fonte: @basedosdados · Elaboração: Arthur Gusmão") +
         theme_minimal() +

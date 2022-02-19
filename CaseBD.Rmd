@@ -1,14 +1,14 @@
 ---
-title: "Case Base dos Dados"
-description: |
-author:
-  - name: Arthur Gusmão
-    url: https://github.com/arthurfg
-date: 2022-02-19
+title: "Case BD"
+date: "`r Sys.Date()`"
 output:
-  distill::distill_article:
-    self_contained: false
+ html_document:
+   theme:
+     bg: "#F5F4EF"
+     fg: "#000000"
+     base_font: "Georgia"
 ---
+
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
@@ -38,7 +38,6 @@ library(basedosdados)
 library(tidyverse)
 library(geofacet)
 library(ggh4x)
-library(plotly)
 library(extrafont)
 ```
 
@@ -68,10 +67,7 @@ query2 <- bdplyr("br_tse_eleicoes.candidatos") %>%
 
 df_candidatos <- bd_collect(query2)
 
-#query3 <- bdplyr("br_me_siconfi.municipio_despesas_funcao")%>%
-  #filter(sigla_uf == "RJ", ano >2012)
-
-#df_despesas <- bd_collect(query3)
+## base de diretórios
 
 query4 <- bdplyr("br_bd_diretorios_brasil.uf")%>%
   select(sigla, nome)
@@ -89,8 +85,6 @@ diretorio <- diretorio %>%
 
 candidatos_merged <- merge(candidatos_merged, diretorio, by.x = "sigla_uf.x", by.y = "sigla_uf")
 
-#df_despesas %>%
-  #filter(estagio == "Despesas Pagas") %>% group_by(conta) %>% distinct(conta) %>% view()
 ```
 
 Com as funções do `dplyr`, montei uma base (a) com número de candidatos(as) eleitos(as), por gênero, e a propoção entre os dois gêneros.
@@ -112,6 +106,7 @@ a <- candidatos_merged %>%
 Com a base pronta, criei uma primeira visualização, com o pacote `ggplot2`, mostrando a evolução temporal da proporção de pessoas eleitas, para o cargo de vereador(a), do gênero feminino, comparada com o total de vereadores(as) eleitos(as), por UF. Com o `geofacet::facet_geo()` pude deixar a visualização um pouquinho mais "bonita", dando ao gráfico o formato, *não tão exato*, do mapa do Brasil.
 
 ```{r fig.height = 10, fig.width = 10}
+## gráfico com o facet_geo()
 a %>%
   filter(genero=="feminino")%>%
   ggplot(aes(x = ano, y = proporcao))+

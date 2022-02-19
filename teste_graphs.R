@@ -94,3 +94,6 @@ a %>%
 aspect_ratio <- 2.5
 height <- 7
 ggsave(plot1, height = 7 , width = 7)
+
+
+khvjhvjhvjhvjhvjhvjhv

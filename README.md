@@ -18,9 +18,11 @@ A base escolhida foi a de **Eleições Brasileiras.**
 
 <!-- badges: end -->
 
-O código para as visualizações está em formato `.Rmd` e é completamente
-reprodutível. A única ressalva fica para o `set_billing_id()` que, no
-caso, contém o meu *billing id*.
+O código para as visualizações é o
+[`CaseBD.Rmd`](https://github.com/arthurfg/bd_case/blob/main/CaseBD.Rmd),
+que está presente no repositório, ele é completamente reprodutível. A
+única ressalva fica para o `set_billing_id()` que, no caso, contém o
+meu *billing id*.
 
 ## Visualizações:
 

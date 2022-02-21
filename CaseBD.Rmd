@@ -1,12 +1,7 @@
 ---
 title: "Case BD"
 date: "`r Sys.Date()`"
-output: 
- html_document:
-   theme:
-     bg: "#F5F4EF"
-     fg: "#000000"
-     base_font: "Georgia"
+output: html_document
 ---
 
 
